@@ -19,7 +19,9 @@ package etcd
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -30,7 +32,7 @@ import (
 )
 
 // etcdTimeout is the maximum time any individual call to the etcd client through the backoff adapter will take.
-const etcdTimeout = 2 * time.Second
+var etcdTimeout = 2 * time.Second
 
 // GRPCDial is a function that creates a connection to a given endpoint.
 type GRPCDial func(ctx context.Context, addr string) (net.Conn, error)
@@ -111,6 +113,18 @@ type Member struct {
 
 	// Alarms is the list of alarms for a member.
 	Alarms []AlarmType
+}
+
+func init() {
+	if etcdTimeoutOverrideString := os.Getenv("ETCD_TIMEOUT"); etcdTimeoutOverrideString != "" {
+		etcdTimeoutOverrideParsed, err := time.ParseDuration(etcdTimeoutOverrideString)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse etcd timeout override %q: %s\n", etcdTimeoutOverrideString, err)
+		} else {
+			fmt.Printf("Using a custom etcd timeout of %s\n", etcdTimeoutOverrideParsed)
+			etcdTimeout = etcdTimeoutOverrideParsed
+		}
+	}
 }
 
 // pbMemberToMember converts the protobuf representation of a cluster member to a Member struct.
